@@ -85,19 +85,47 @@ int main() {
         string event = j[0].get<string>();
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          vector<double> ptsx = j[1]["ptsx"];
-          vector<double> ptsy = j[1]["ptsy"];
-          double px = j[1]["x"];
-          double py = j[1]["y"];
-          double psi = j[1]["psi"];
-          double v = j[1]["speed"];
-
+          vector<double> ptsx = j[1]["ptsx"]; // x values of the points
+          vector<double> ptsy = j[1]["ptsy"]; // y values of the points
+          double px = j[1]["x"]; // x position of the vehicle
+          double py = j[1]["y"]; // y position of the vehicle
+          double psi = j[1]["psi"]; // orientation of the vehicle
+          double v = j[1]["speed"]; // speed of the vehicle
+          
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
           * Both are in between [-1, 1].
           *
           */
+
+          // transform ptsx positions with respect to ego vehicle
+          // inverse transformation in https://en.wikipedia.org/wiki/Rotation_of_axes
+          Eigen::VectorXd ptsx_ego(ptsx.size());
+          Eigen::VectorXd ptsy_ego(ptsy.size());
+
+          for(int i=0; i < ptsx.size(); i++){
+            double delta_x = ptsx[i] - px;
+            double delta_y = ptsy[i] - py;
+            ptsy_ego[i] = delta_y * cos(-psi) - delta_x * sin(-psi);
+            ptsx_ego[i] = delta_x * cos(-psi) + delta_y * sin(-psi);
+          }
+
+          // fit the reference route with respect to the vehicle by cubic polynomial
+          Eigen::VectorXd coeffs = polyfit(ptsx_ego, ptsy_ego, 3); 
+          double cte = coeffs[0]; // 0 as the vehicle is on the origin in the ego coordinates.
+          double epsi = -atan(coeffs[1]); // f'(0) for a 3rd order polynomial is the coeff[1], 
+
+          // PREDICTING THE STATE AFTER LATENCY
+          const double Lf = 2.67; // the distance between center of mass and front axle of the car
+          const double dt = 0.1; // assuming the delay in actuation is 100 ms
+
+          // STATES : px, py, psi, v, cte, epsi
+          Eigen::VectorXd state_NEXT(6); // states after latency
+          state_NEXT(0) = v * dt; // px (in vehicle coordinates)
+          state_NEXT(1) = 0.0; // py = 0.0 (in vehicle coordinates)
+          state_NEXT(2) = v / Lf * ()
+          
           double steer_value;
           double throttle_value;
 
