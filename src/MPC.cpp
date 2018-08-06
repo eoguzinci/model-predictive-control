@@ -115,8 +115,8 @@ class FG_eval {
       AD<double> a0 = vars[a_start + t - 1];
 
       // coeffs are the coefficients of the fitted polynomial
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * pow(x0,2) + coeffs[3] *pow(x0,3);
+      AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2]* x0 + 3 * coeffs[3] * pow(x0,2));
 
       // Here's `x` to get you started.
       // The idea here is to constraint this value to be 0.
