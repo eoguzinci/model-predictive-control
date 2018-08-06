@@ -106,10 +106,10 @@ int main() {
           Eigen::VectorXd ptsy_ego(ptsy.size());
 
           for(int i=0; i < ptsx.size(); i++){
-            double delta_x = ptsx[i] - px;
-            double delta_y = ptsy[i] - py;
-            ptsy_ego[i] = delta_y * cos(-psi) - delta_x * sin(-psi);
-            ptsx_ego[i] = delta_x * cos(-psi) + delta_y * sin(-psi);
+            double dx = ptsx[i] - px;
+            double dy = ptsy[i] - py;
+            ptsx_ego[i] = dx * cos(-psi) - dy * sin(-psi);
+            ptsy_ego[i] = dy * cos(-psi) + dx * sin(-psi);
           }
 
           // fit the reference route with respect to the vehicle by cubic polynomial
