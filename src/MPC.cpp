@@ -70,7 +70,7 @@ class FG_eval {
 
     // Minimize the value gap between sequential actuations.
     for (unsigned int t = 0; t < N - 2; t++) {
-      fg[0] += 100 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2); // YIELDS TO MUCH BETTER STEERING ANGLE RESULTS
+      fg[0] += 500 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2); // YIELDS TO MUCH BETTER STEERING ANGLE RESULTS
       // fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2); //THIS CAUSES ABRUPTS CHANGES IN STEERING ANGLE
       fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
@@ -286,5 +286,5 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     output.push_back(solution.x[y_start + i]);
   }
 
-  return {};
+  return output;
 }
