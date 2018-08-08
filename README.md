@@ -90,6 +90,8 @@ And then the constraints are introduced with updated state values and physical a
 
 Here we used CppAD to compute the derivates and IPOPT to optimized actuation variables in N timesteps within the given constraints.
 
+Here, you can find a successful implementation [video](./output_file.mp4).
+
 
 ## Dependencies
 
