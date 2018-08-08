@@ -3,6 +3,94 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## Introduction
+
+In this project, we will navigate through the track in [udacity simulator](https://github.com/udacity/self-driving-car-sim/releases) using a model-predictive-control algorithm. Given the set of points which the car ideally follows, a cubic polynomial function is fitted to with a least squares method. The algorithm finds an optimal path and actuation values with respect to the current states of the car by minimizing a cost function including cross-track error and orientation error within the next N iterative points in a prespecified timestep, dt. The algorithm also takes an actuation delay of 100 ms, which is typical in many robotic applications. 
+
+## Rubrics 
+
+### The Kinematic Model
+
+The kinematic model is consists of the states and the errors of the vehicle at a specific time. The states involve the horizontal and vertical position of the car, x and y values, orientation angle <img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi"/> and the speed of vehicle, v. The errors are the cross track error, cte, and the orientation error, <img src="https://latex.codecogs.com/svg.latex?\Large&space;e\psi"/>. The ordinary differential equations (ODEs) which describes change of states and errors are as follows:
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;x_{t+1} = x_t + v_t cos(\psi_t) dt "/> 
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;y_{t+1} = y_t + v_t sin(\psi_t) dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi_{t+1} = \psi_t + \frac{v_t}{L_f} \delta_t dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;v_{t+1} = v_t + a_t dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;cte_{t+1} = cte_t + v_t sin(e\psi_t) dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;e\psi_{t+1} = e\psi_t + \frac{v_t}{L_f} \delta_t dt "/>
+
+where <img src="https://latex.codecogs.com/svg.latex?\Large&space;L_f"/> is the distance between the center of gravity of the vehicle and the front axle. 
+
+__Note :__ The update equation for the orientation angle is changed to <img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi_{t+1} = \psi_t - \frac{v_t}{L_f} \delta_t dt "/> as the vehicle driven in a different orientation throughout the track. 
+
+### Timestep Length and Elapsed Duration (N & dt)
+
+The time step length and elapsed duration are directly taken from the previoud Udacity example as 25 and 0.05, respectively. These values are pretty conservative as the timestep is small and the total prediction horizon, N*dt = 1.25s, is not long. To make a more efficient calculation, I have used 12-0.1s and 6-0.2s. But to stabilize with coarser configuration, it is necessary to use either a better fit or better cost function.
+
+### Polynomial Fitting and MPC Preprocessing   
+
+As mentioned in the introduction, the waypoints are fitted by a least-squares regression to a 3rd order polynomial using this [formulation](https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716). Now, we can use this polynomial as a reference in error calculations instead of a set of points. 
+
+The mapping from the global coordinates to the vehicle coordinates are made by inverse transformation equation in [here] (https://en.wikipedia.org/wiki/Rotation_of_axes). The update equations and waypoints are also mapped into the vehicle coordinates, so that the calculation is simplified as:
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;x_{t+1} = v_t cos(\psi_t) dt "/> 
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;y_{t+1} = 0 "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi_{t+1} = \frac{v_t}{L_f} \delta_t dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;v_{t+1} = v_t + a_t dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;cte_{t+1} = cte_t + v_t sin(e\psi_t) dt "/>
+
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;e\psi_{t+1} = e\psi_t + \frac{v_t}{L_f} \delta_t dt "/>
+
+as x, y and <img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi"/> values of the vehicle are zero in vehicle coordinates. 
+
+### Control Algorithm
+
+A model predictive control(MPC) algorithm is used to keep the  navigating vehicle in track. Before doing so the latency is taken into account for the inputs/ states of the vehicle, therefore, the update equation in vehicle coordinates above is used where dt is regarded as the actuation delay, 0.1 s. Then, the updated values are fed to the MPC routine. 
+
+The cost function and the optimization constraints are determined first. The cost function is consists of the L2-errors of cross-track error, orientation error and velocity error with respect to reference velocity.
+```
+double cost = 0;
+for (int t = 0; t < N; t++) {
+    cost += pow(cte[t], 2);
+    cost += pow(epsi[t], 2);
+    cost += pow(v[t] - v_ref, 2);
+}
+```
+
+After that, a penalty is applied to the change rates of the actuations.
+
+```
+// Minimize change-rate.
+for (int t = 0; t < N - 1; t++) {
+  cost += pow(vars[delta_start + t], 2);
+  cost += pow(vars[a_start + t], 2);
+}
+```
+
+The gap between actuations at adjacent time step is also penalized. 
+```
+// Minimize the value gap between sequential actuations.
+for (int t = 0; t < N - 2; t++) {
+  cost += pow(vars[delta_start + t + 1] - vars[delta_start + t], 2); 
+  cost += pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+}
+```
+
+And then the constraints are introduced with updated state values and physical actuation constraints, e.g. <img src="https://latex.codecogs.com/svg.latex?\Large&space;\psi \in [-25,25]"/> degree.
+
+Here we used CppAD to compute the derivates and IPOPT to optimized actuation variables in N timesteps within the given constraints.
+
+
 ## Dependencies
 
 * cmake >= 3.5
